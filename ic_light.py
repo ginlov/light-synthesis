@@ -415,7 +415,7 @@ def light_synthesize(
     for timestep in tqdm(all_time_steps, desc="Processing Time Steps"):
         # Get crop params
         crop_params = process_images_and_intrinsics(
-            args.input_dir,
+            input_dir,
             timestep
         )
         
