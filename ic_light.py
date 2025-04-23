@@ -15,7 +15,7 @@ from enum import Enum
 from torch.hub import download_url_to_file
 from tqdm import tqdm
 from time import time
-from prompt_enhance import prompt_enhance_light
+from prompt_enhance import gen_lighting_prompt
 from crop import create_transforms_json, process_images_and_intrinsics, apply_mask
 from tqdm import tqdm
 
@@ -119,6 +119,8 @@ t2i_pipe = StableDiffusionPipeline(
     image_encoder=None
 )
 
+t2i_pipe.set_progress_bar_config(disable=True)
+
 i2i_pipe = StableDiffusionImg2ImgPipeline(
     vae=vae,
     text_encoder=text_encoder,
@@ -130,7 +132,7 @@ i2i_pipe = StableDiffusionImg2ImgPipeline(
     feature_extractor=None,
     image_encoder=None
 )
-
+i2i_pipe.set_progress_bar_config(disable=True)
 
 @torch.inference_mode()
 def encode_prompt_inner(txt: str):
@@ -379,9 +381,87 @@ class BGSource(Enum):
     TOP = "Top Light"
     BOTTOM = "Bottom Light"
 
+def light_synthesize(
+    out_path,
+    input_dir,
+    light_prompt,
+    light_num_samples,
+    light_seed,
+    light_steps,
+    light_a_prompt,
+    light_n_prompt,
+    light_cfg,
+    light_highres_scale,
+    light_highres_denoise,
+    light_lowres_denoise,
+    light_bg_source
+):
+    # Create output directory with structure same as images_lr folder
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+        os.makedirs(os.path.join(out_path, 'images_lr'))
+
+    # List all time step
+    camera_ids = os.listdir(os.path.join(input_dir, 'images_lr'))
+    first_camera_id = camera_ids[0]
+    for camera_id in camera_ids:
+        if not os.path.exists(os.path.join(out_path, 'images_lr', camera_id)):
+            # Create the directory for each camera
+            os.makedirs(os.path.join(out_path, 'images_lr', camera_id))
+
+    all_time_steps = os.listdir(os.path.join(input_dir, 'images_lr', first_camera_id))
+    all_time_steps = [x.split('_')[0] for x in all_time_steps]
+
+    for timestep in tqdm(all_time_steps, desc="Processing Time Steps"):
+        # Get crop params
+        crop_params = process_images_and_intrinsics(
+            args.input_dir,
+            timestep
+        )
+        
+        # Relight
+        for camera_id in tqdm(camera_ids, desc=f"Processing Cameras for Timestep {timestep}", leave=False):
+            # Get image
+            image_path = os.path.join(input_dir, 'images_lr', camera_id, f"{timestep}_img.jpg")
+            pose_image = Image.open(image_path)
+            pose_image = np.array(pose_image)
+            mask_path = os.path.join(input_dir, 'fmask_lr', camera_id, f"{timestep}_img_fmask.png")
+            mask_image = np.array(Image.open(mask_path))
+            img_masked = apply_mask(pose_image, mask_image)
+            img_masked_pil = Image.fromarray(img_masked)
+            crop = crop_params[camera_id]['crop']
+            cropped = img_masked_pil.crop(crop)
+            np_cropped = np.array(cropped)
+        
+            h, w, _ = np_cropped.shape
+
+            h = h - (h % 8)
+            w = w - (w % 8)
+
+            input_fg, results = process_relight(
+                np_cropped,
+                light_prompt,
+                w,
+                h,
+                light_num_samples,
+                light_seed,
+                light_steps,
+                light_a_prompt,
+                light_n_prompt,
+                light_cfg,
+                light_highres_scale,
+                light_highres_denoise,
+                light_lowres_denoise,
+                BGSource(light_bg_source)
+            )
+
+            # Assume that we just generate one image for simplicity
+            # Save the output image
+            Image.fromarray(results[0]).save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_image.png"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ICLight")
+    object_list = []
 
     # Lighting args
     parser.add_argument("--input_dir", type=str, required=True, help="Path to the input directory")
@@ -399,69 +479,31 @@ if __name__ == "__main__":
     parser.add_argument("--light_bg_source", type=str, default=BGSource.NONE.value, help="Background source")
     args = parser.parse_args()
 
-    # Create output directory with structure same as images_lr folder
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
-        os.makedirs(os.path.join(args.out_path, 'images_lr'))
 
+    prompt_list = []
+    for i in range(100):
+        prompt_list.append(gen_lighting_prompt())
+    
+    # Get random prompt
+    light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
 
-    # List all time step
-    camera_ids = os.listdir(os.path.join(args.input_dir, 'images_lr'))
-    first_camera_id = camera_ids[0]
-    for camera_id in camera_ids:
-        if not os.path.exists(os.path.join(args.out_path, 'images_lr', camera_id)):
-            # Create the directory for each camera
-            os.makedirs(os.path.join(args.out_path, 'images_lr', camera_id))
-
-    all_time_steps = os.listdir(os.path.join(args.input_dir, 'images_lr', first_camera_id))
-    all_time_steps = [x.split('_')[0] for x in all_time_steps]
-
-    for timestep in tqdm(all_time_steps, desc="Processing Time Steps"):
-        # Get crop params
-        crop_params = process_images_and_intrinsics(
-            args.input_dir,
-            timestep
+    for object_ in object_list:
+        input_dir = os.path.join(args.input_dir, object_)
+        output_dir = os.path.join(args.out_path, object_)
+        light_synthesize(
+            out_path=output_dir,
+            input_dir=input_dir,
+            light_prompt=light_prompt,
+            light_num_samples=args.light_num_samples,
+            light_seed=args.light_seed,
+            light_steps=args.light_steps,
+            light_a_prompt=args.light_a_prompt,
+            light_n_prompt=args.light_n_prompt,
+            light_cfg=args.light_cfg,
+            light_highres_scale=args.light_highres_scale,
+            light_highres_denoise=args.light_highres_denoise,
+            light_lowres_denoise=args.light_lowres_denoise,
+            light_bg_source=args.light_bg_source
         )
-        
-        # Relight
-        for camera_id in tqdm(camera_ids, desc=f"Processing Cameras for Timestep {timestep}", leave=False):
-            # Get image
-            image_path = os.path.join(args.input_dir, 'images_lr', camera_id, f"{timestep}_img.jpg")
-            pose_image = Image.open(image_path)
-            pose_image = np.array(pose_image)
-            mask_path = os.path.join(args.input_dir, 'fmask_lr', camera_id, f"{timestep}_img_fmask.png")
-            mask_image = np.array(Image.open(mask_path))
-            img_masked = apply_mask(pose_image, mask_image)
-            img_masked_pil = Image.fromarray(img_masked)
-            crop = crop_params[camera_id]['crop']
-            cropped = img_masked_pil.crop(crop)
-            np_cropped = np.array(cropped)
-        
-            # Enhance prompt
-            light_prompt = prompt_enhance_light(cropped, args.light_prompt)
-        
-            h, w, _ = np_cropped.shape
-
-            h = h - (h % 8)
-            w = w - (w % 8)
-
-            input_fg, results = process_relight(
-                np_cropped,
-                light_prompt,
-                w,
-                h,
-                args.light_num_samples,
-                args.light_seed,
-                args.light_steps,
-                args.light_a_prompt,
-                args.light_n_prompt,
-                args.light_cfg,
-                args.light_highres_scale,
-                args.light_highres_denoise,
-                args.light_lowres_denoise,
-                BGSource(args.light_bg_source)
-            )
-
-            # Assume that we just generate one image for simplicity
-            # Save the output image
-            Image.fromarray(results[0]).save(os.path.join(args.out_path, 'images_lr', camera_id, f"{timestep}_image.png"))
