@@ -1,6 +1,6 @@
 #/bin/bash
-export INPUT_PATH="/data/org/100831"
-export OUTPUT_PATH="/data/cropped/100831"
+export INPUT_PATH="/data/org"
+export OUTPUT_PATH="/data/cropped"
 export LIGHT_PROMPT="A beautiful sunset over the ocean"
 export LIGHT_NUM_SAMPLES=1
 export LIGHT_SEED=67890

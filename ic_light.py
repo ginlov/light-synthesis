@@ -482,9 +482,33 @@ if __name__ == "__main__":
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
 
-    prompt_list = []
-    for i in range(100):
-        prompt_list.append(gen_lighting_prompt())
+    prompt_list = [ "Change the lighting to a warm golden hour glow with long soft shadows.",
+"Apply dramatic low-key lighting with high contrast and deep shadows.",
+"Add soft morning light coming from the left side of the scene.",
+"Transform the image to a bright midday sunlight with clear shadows.",
+"Add cool-toned moonlight illuminating the scene from the top-right.",
+"Change lighting to a moody blue twilight ambiance.",
+"Apply cinematic lighting with warm highlights and cool shadows.",
+"Add diffused natural light as if it’s a cloudy day.",
+"Simulate neon lighting with vivid red and blue tones from opposite sides.",
+"Create a spotlight effect focused at the center of the image.",
+"Change lighting to a dim candlelit glow with flickering highlights.",
+"Illuminate the scene with soft studio lighting from both sides.",
+"Add sunset lighting with warm orange and pink hues.",
+"Transform into harsh fluorescent lighting typical of an office.",
+"Simulate strobe lighting with sharp, flashing light bursts.",
+"Change to soft indoor lighting with warm incandescent tones.",
+"Add directional light from a window casting diagonal shadows.",
+"Apply dramatic chiaroscuro lighting with intense light-dark contrast.",
+"Change lighting to cool, ambient night-time streetlight glow.",
+"Simulate overexposed daylight creating a washed-out look."]
+
+    try:
+        for i in range(100):
+            new_prompt = gen_lighting_prompt()
+            prompt_list.append(new_prompt)
+    except:
+        pass
     
     # Get random prompt
     light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
