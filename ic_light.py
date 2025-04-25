@@ -17,6 +17,7 @@ from tqdm import tqdm
 from time import time
 from prompt_enhance import gen_lighting_prompt
 from crop import create_transforms_json, process_images_and_intrinsics, apply_mask
+from crop_simple import crop_img, fill_to_orginal_image
 from tqdm import tqdm
 
 # 'stablediffusionapi/realistic-vision-v51'
@@ -412,34 +413,15 @@ def light_synthesize(
     all_time_steps = os.listdir(os.path.join(input_dir, 'images_lr', first_camera_id))
     all_time_steps = [x.split('_')[0] for x in all_time_steps]
 
-    for timestep in tqdm(all_time_steps, desc="Processing Time Steps"):
-        # Get crop params
-        crop_params = process_images_and_intrinsics(
-            input_dir,
-            timestep
-        )
-        
-        # Relight
-        for camera_id in tqdm(camera_ids, desc=f"Processing Cameras for Timestep {timestep}", leave=False):
-            # Get image
-            image_path = os.path.join(input_dir, 'images_lr', camera_id, f"{timestep}_img.jpg")
-            pose_image = Image.open(image_path)
-            pose_image = np.array(pose_image)
-            mask_path = os.path.join(input_dir, 'fmask_lr', camera_id, f"{timestep}_img_fmask.png")
-            mask_image = np.array(Image.open(mask_path))
-            img_masked = apply_mask(pose_image, mask_image)
-            img_masked_pil = Image.fromarray(img_masked)
-            crop = crop_params[camera_id]['crop']
-            cropped = img_masked_pil.crop(crop)
-            np_cropped = np.array(cropped)
-        
-            h, w, _ = np_cropped.shape
+    for camera_id in tqdm(camera_ids, desc="Processing Cameras"):
+        for timestep in tqdm(all_time_steps, desc='Processing timesteps'):
+            cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
-            h = h - (h % 8)
-            w = w - (w % 8)
+            cropped_image = np.array(cropped_image)
+            h, w, _ = cropped_image.shape
 
             input_fg, results = process_relight(
-                np_cropped,
+                cropped_image,
                 light_prompt,
                 w,
                 h,
@@ -455,9 +437,8 @@ def light_synthesize(
                 BGSource(light_bg_source)
             )
 
-            # Assume that we just generate one image for simplicity
-            # Save the output image
-            Image.fromarray(results[0]).save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_image.png"))
+            final_image = fill_to_orginal_image(Image.fromarray(results[0]), crop_param, width, height)
+            final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_image.png"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ICLight")
