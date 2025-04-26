@@ -418,7 +418,7 @@ def light_synthesize(
             cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
             cropped_image = np.array(cropped_image)
-            w, h, _ = cropped_image.shape
+            h, w, _ = cropped_image.shape
 
             input_fg, results = process_relight(
                 cropped_image,
@@ -436,8 +436,10 @@ def light_synthesize(
                 light_lowres_denoise,
                 BGSource(light_bg_source)
             )
+            output_img = Image.fromarray(results[0])
 
-            final_image = fill_to_orginal_image(Image.fromarray(results[0]), crop_param, width, height)
+            assert output_img.size == (w, h), f"Output image size {output_img.size} does not match expected size {(w, h)}"
+            final_image = fill_to_orginal_image(output_img, crop_param, width, height)
             final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg"))
 
 if __name__ == "__main__":
