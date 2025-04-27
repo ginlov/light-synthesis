@@ -17,7 +17,6 @@ from tqdm import tqdm
 from time import time
 from prompt_enhance import gen_lighting_prompt
 from crop_simple import crop_img, fill_to_orginal_image
-from tqdm import tqdm
 
 class BGSource(Enum):
     NONE = "None"
@@ -409,6 +408,7 @@ def light_synthesize(
             # Get light prompt and background source
             light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
             light_bg_source = np.random.choice(list(BGSource), 1)[0]
+            print(f"camera_id: {camera_id}, timestep: {timestep}, light_prompt: {light_prompt}, light_bg_source: {light_bg_source}")
             cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
             cropped_image = np.array(cropped_image)
@@ -431,7 +431,7 @@ def light_synthesize(
                 light_bg_source
             )
             output_img = Image.fromarray(results[0])
-
+            output_img = output_img.resize((w, h))
             assert output_img.size == (w, h), f"Output image size {output_img.size} does not match expected size {(w, h)}"
             final_image = fill_to_orginal_image(output_img, crop_param, width, height)
             final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg"))
