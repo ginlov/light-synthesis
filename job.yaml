@@ -5,6 +5,7 @@ metadata:
 spec:
   parallelism: 5
   completions: 5
+  completionMode: Indexed
   template:
     spec:
       affinity:
@@ -26,8 +27,10 @@ spec:
           - "/bin/bash"
           - "-c"
           - |
-            start=$((100 * $((${HOSTNAME##*-} - 1))))
-            end=$((start + 100))
+            export start=$((100 * $JOB_COMPLETION_INDEX))
+            export end=$((start + 100))
+            echo $start
+            echo $end
             export INPUT_DIR=/data/mvhuman_data/mv_captures
             export OUTPUT_DIR=/data/light-edit-mvhuman
             git clone https://github.com/ginlov/light-synthesis.git
@@ -35,7 +38,12 @@ spec:
             apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
             pip install -r requirements.txt
             echo "Processing folders from $start to $end"
-            python ic_light.py --input_dir $INPUT_PATH --out_path $OUTPUT_PATH --start $start --end $end
+            python ic_light.py --input_dir $INPUT_DIR --out_path $OUTPUT_DIR --start $start --end $end
+          env:
+            - name: JOB_COMPLETION_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
           resources:
             requests:
               cpu: "16"
