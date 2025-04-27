@@ -1,17 +1,15 @@
 #/bin/bash
+
+# Ensure start and end variables are provided
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: $0 <start> <end>"
+  exit 1
+fi
+
+start=$1
+end=$2
+
 export INPUT_PATH="/data/org"
 export OUTPUT_PATH="cropped"
-export LIGHT_NUM_SAMPLES=1
-export LIGHT_SEED=67890
-export LIGHT_STEPS=25
-export LIGHT_A_PROMPT="best quality"
-export LIGHT_N_PROMPT="lowres, bad anatomy, bad hands, cropped, worst quality"
-export LIGHT_CFG=2.0
-export LIGHT_HIGHRES_SCALE=2.0
-export LIGHT_HIGHRES_DENOISE=0.75
-export LIGHT_LOWRES_DENOISE=0.9
 
-python ic_light.py --input_dir $INPUT_PATH --out_path $OUTPUT_PATH --light_num_samples $LIGHT_NUM_SAMPLES --light_seed $LIGHT_SEED \
---light_steps $LIGHT_STEPS --light_a_prompt "$LIGHT_A_PROMPT" --light_n_prompt "$LIGHT_N_PROMPT" \
---light_cfg $LIGHT_CFG --light_highres_scale $LIGHT_HIGHRES_SCALE --light_highres_denoise $LIGHT_HIGHRES_DENOISE \
---light_lowres_denoise $LIGHT_LOWRES_DENOISE
+python ic_light.py --input_dir $INPUT_PATH --out_path $OUTPUT_PATH --start $start --end $end

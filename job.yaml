@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: light-edit-mvhuman-job
+spec:
+  parallelism: 5
+  completions: 5
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-GeForce-RTX-3090
+                - NVIDIA-GeForce-RTX-4090
+                - NVIDIA-A10
+      restartPolicy: Never
+      containers:
+        - name: python-container
+          image: python:3.10.16-bullseye
+          command: 
+          - "/bin/bash"
+          - "-c"
+          - |
+            start=$((100 * $((${HOSTNAME##*-} - 1))))
+            end=$((start + 100))
+            export INPUT_DIR=/data/mvhuman_data/mv_captures
+            export OUTPUT_DIR=/data/light-edit-mvhuman
+            git clone https://github.com/ginlov/light-synthesis.git
+            cd light-synthesis
+            apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+            pip install -r requirements.txt
+            echo "Processing folders from $start to $end"
+            python ic_light.py --input_dir $INPUT_PATH --out_path $OUTPUT_PATH --start $start --end $end
+          resources:
+            requests:
+              cpu: "16"
+              memory: "32Gi"
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "16"
+              memory: "32Gi"
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - mountPath: /data
+              name: data-volume
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: mvhumannet-dataset

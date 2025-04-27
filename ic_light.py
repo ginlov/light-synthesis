@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import safetensors.torch as sf
 import argparse
+import logging
 
 from PIL import Image
 from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline
@@ -365,11 +366,11 @@ def light_synthesize(
     light_lowres_denoise
 ):
     prompt_list = [
-    "morning sunlight through sheer curtains",
+    "morning sunlight",
     "neon reflections on wet pavement, night city",
     "twilight glow, serene forest clearing",
     "candlelit dinner, cozy and intimate",
-    "moonlight casting shadows over mountains",
+    "moonlight on mountain",
     "fluorescent lights in abandoned mall",
     "warm fireplace glow, rustic cabin interior",
     "bioluminescent plants, alien jungle",
@@ -379,12 +380,15 @@ def light_synthesize(
     "icy blue northern lights across night sky",
     "soft bedside lamp, quiet reading time",
     "cinematic spotlight in smoky room",
-    "multicolor LED lights, futuristic nightclub",
     "pale dawn mist, gentle ambient light",
     "harsh interrogation room spotlight",
     "oil lanterns lining a dark medieval alley",
     "pink sunset clouds over a sleepy village",
-    "warm bokeh lights, festive street fair"
+    "warm bokeh lights, festive street fair",
+    "outdoor, ocean sunset",
+    "outdoor, ocean sunrise",
+    "outdoor, grass field",
+    "bright, sunny day"
 ]
 
     # Create output directory with structure same as images_lr folder
@@ -408,7 +412,7 @@ def light_synthesize(
             # Get light prompt and background source
             light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
             light_bg_source = np.random.choice(list(BGSource), 1)[0]
-            print(f"camera_id: {camera_id}, timestep: {timestep}, light_prompt: {light_prompt}, light_bg_source: {light_bg_source}")
+            logging.info(f"camera_id: {camera_id}, timestep: {timestep}, light_prompt: {light_prompt}, light_bg_source: {light_bg_source}")
             cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
             cropped_image = np.array(cropped_image)
@@ -436,6 +440,18 @@ def light_synthesize(
             final_image = fill_to_orginal_image(output_img, crop_param, width, height)
             final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg"))
 
+# Set up logging
+def setup_logging(output_path):
+    log_file = os.path.join(output_path, "log")
+    os.makedirs(output_path, exist_ok=True)  # Ensure the directory exists
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, mode='w'),  # Log to file
+        ]
+    )
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ICLight")
     object_list = []
@@ -452,11 +468,17 @@ if __name__ == "__main__":
     parser.add_argument("--light_highres_scale", type=float, default=1.5, help="Highres scale")
     parser.add_argument("--light_highres_denoise", type=float, default=0.5, help="Highres denoise")
     parser.add_argument("--light_lowres_denoise", type=float, default=0.9, help="Lowres denoise")
+    parser.add_argument("--start", type=int, default=0, help="Start folder index for processing")
+    parser.add_argument("--end", type=int, default=100, help="End folder index for processing")
     args = parser.parse_args()
+
+    folder_list = os.listdir(args.input_dir)
+    folder_list = sorted(folder_list)
+    object_list = folder_list[args.start:args.end]
 
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
-
+    setup_logging(args.out_path)
     for object_ in object_list:
         input_dir = os.path.join(args.input_dir, object_)
         output_dir = os.path.join(args.out_path, object_)
