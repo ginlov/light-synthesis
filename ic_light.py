@@ -20,6 +20,13 @@ from crop import create_transforms_json, process_images_and_intrinsics, apply_ma
 from crop_simple import crop_img, fill_to_orginal_image
 from tqdm import tqdm
 
+class BGSource(Enum):
+    NONE = "None"
+    LEFT = "Left Light"
+    RIGHT = "Right Light"
+    TOP = "Top Light"
+    BOTTOM = "Bottom Light"
+    
 # 'stablediffusionapi/realistic-vision-v51'
 # 'runwayml/stable-diffusion-v1-5'
 sd15_name = 'stablediffusionapi/realistic-vision-v51'
@@ -48,11 +55,9 @@ def hooked_unet_forward(sample, timestep, encoder_hidden_states, **kwargs):
     kwargs['cross_attention_kwargs'] = {}
     return unet_original_forward(new_sample, timestep, encoder_hidden_states, **kwargs)
 
-
 unet.forward = hooked_unet_forward
 
 # Load
-
 model_path = './models/iclight_sd15_fc.safetensors'
 
 if not os.path.exists(model_path):
@@ -66,7 +71,6 @@ unet.load_state_dict(sd_merged, strict=True)
 del sd_offset, sd_origin, sd_merged, keys
 
 # Device
-
 device = torch.device('cuda')
 text_encoder = text_encoder.to(device=device, dtype=torch.float16)
 vae = vae.to(device=device, dtype=torch.bfloat16)
@@ -74,12 +78,10 @@ unet = unet.to(device=device, dtype=torch.float16)
 rmbg = rmbg.to(device=device, dtype=torch.float32)
 
 # SDP
-
 unet.set_attn_processor(AttnProcessor2_0())
 vae.set_attn_processor(AttnProcessor2_0())
 
 # Samplers
-
 ddim_scheduler = DDIMScheduler(
     num_train_timesteps=1000,
     beta_start=0.00085,
@@ -107,7 +109,7 @@ dpmpp_2m_sde_karras_scheduler = DPMSolverMultistepScheduler(
 )
 
 # Pipelines
-
+## Text to Image is used in case there is no background constraint
 t2i_pipe = StableDiffusionPipeline(
     vae=vae,
     text_encoder=text_encoder,
@@ -119,9 +121,9 @@ t2i_pipe = StableDiffusionPipeline(
     feature_extractor=None,
     image_encoder=None
 )
-
 t2i_pipe.set_progress_bar_config(disable=True)
 
+## Image to Image is used in case there is a background constraint, it is also used for the final upscaling
 i2i_pipe = StableDiffusionImg2ImgPipeline(
     vae=vae,
     text_encoder=text_encoder,
@@ -265,8 +267,8 @@ def process(input_fg, prompt, image_width, image_height, num_samples, seed, step
 
     rng = torch.Generator(device=device).manual_seed(int(seed))
 
+    ## Lowres generation
     fg = resize_and_center_crop(input_fg, image_width, image_height)
-
     concat_conds = numpy2pytorch([fg]).to(device=vae.device, dtype=vae.dtype)
     concat_conds = vae.encode(concat_conds).latent_dist.mode() * vae.config.scaling_factor
 
@@ -304,6 +306,9 @@ def process(input_fg, prompt, image_width, image_height, num_samples, seed, step
             cross_attention_kwargs={'concat_conds': concat_conds},
         ).images.to(vae.dtype) / vae.config.scaling_factor
 
+
+    ## Upscale output image. For this project, we keep highres_scale = 1.0 to preserve the original image size.
+    ## However, this phase is necessary to guarantee the image quality.
     pixels = vae.decode(latents).sample
     pixels = pytorch2numpy(pixels)
     pixels = [resize_without_crop(
@@ -347,40 +352,6 @@ def process_relight(input_fg, prompt, image_width, image_height, num_samples, se
     input_fg, matting = run_rmbg(input_fg)
     results = process(input_fg, prompt, image_width, image_height, num_samples, seed, steps, a_prompt, n_prompt, cfg, highres_scale, highres_denoise, lowres_denoise, bg_source)
     return input_fg, results
-
-
-quick_prompts = [
-    'sunshine from window',
-    'neon light, city',
-    'sunset over sea',
-    'golden time',
-    'sci-fi RGB glowing, cyberpunk',
-    'natural lighting',
-    'warm atmosphere, at home, bedroom',
-    'magic lit',
-    'evil, gothic, Yharnam',
-    'light and shadow',
-    'shadow from window',
-    'soft studio lighting',
-    'home atmosphere, cozy bedroom illumination',
-    'neon, Wong Kar-wai, warm'
-]
-quick_prompts = [[x] for x in quick_prompts]
-
-
-quick_subjects = [
-    'beautiful woman, detailed face',
-    'handsome man, detailed face',
-]
-quick_subjects = [[x] for x in quick_subjects]
-
-
-class BGSource(Enum):
-    NONE = "None"
-    LEFT = "Left Light"
-    RIGHT = "Right Light"
-    TOP = "Top Light"
-    BOTTOM = "Bottom Light"
 
 def light_synthesize(
     out_path,
@@ -465,26 +436,25 @@ if __name__ == "__main__":
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
 
-    prompt_list = [ "Change the lighting to a warm golden hour glow with long soft shadows.",
-"Apply dramatic low-key lighting with high contrast and deep shadows.",
-"Add soft morning light coming from the left side of the scene.",
-"Transform the image to a bright midday sunlight with clear shadows.",
-"Add cool-toned moonlight illuminating the scene from the top-right.",
-"Change lighting to a moody blue twilight ambiance.",
-"Apply cinematic lighting with warm highlights and cool shadows.",
-"Add diffused natural light as if it’s a cloudy day.",
-"Simulate neon lighting with vivid red and blue tones from opposite sides.",
-"Create a spotlight effect focused at the center of the image.",
-"Change lighting to a dim candlelit glow with flickering highlights.",
-"Illuminate the scene with soft studio lighting from both sides.",
-"Add sunset lighting with warm orange and pink hues.",
-"Transform into harsh fluorescent lighting typical of an office.",
-"Simulate strobe lighting with sharp, flashing light bursts.",
-"Change to soft indoor lighting with warm incandescent tones.",
-"Add directional light from a window casting diagonal shadows.",
-"Apply dramatic chiaroscuro lighting with intense light-dark contrast.",
-"Change lighting to cool, ambient night-time streetlight glow.",
-"Simulate overexposed daylight creating a washed-out look."]
+    prompt_list = [ "Warm golden hour lighting with long soft shadows",
+"Dramatic low-key lighting with high contrast and deep shadows",
+"Soft morning light from left",
+"Bright midday sunlight with clear shadows",
+"Cool-toned moonlight from top-right",
+"Moody blue twilight ambiance",
+"Cinematic lighting with warm highlights and cool shadows",
+"Diffused natural cloudy-day light",
+"Neon lighting with vivid red and blue tones",
+"Spotlight effect centered",
+"Dim candlelit glow with flickering highlights",
+"Soft studio lighting from both sides",
+"Sunset lighting with warm orange and pink hues",
+"Harsh fluorescent office lighting",
+"Strobe lighting with sharp flashing bursts",
+"Soft indoor lighting with warm incandescent tones",
+"Directional window light with diagonal shadows",
+"Dramatic chiaroscuro"
+]
 
     try:
         for i in range(100):
