@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: light-edit-mvhuman-job
 spec:
-  parallelism: 5
-  completions: 5
+  parallelism: 16
+  completions: 16
   completionMode: Indexed
   template:
     spec:
@@ -46,12 +46,12 @@ spec:
                   fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
           resources:
             requests:
-              cpu: "16"
-              memory: "32Gi"
+              cpu: "8"
+              memory: "16Gi"
               nvidia.com/gpu: 1
             limits:
-              cpu: "16"
-              memory: "32Gi"
+              cpu: "8"
+              memory: "16Gi"
               nvidia.com/gpu: 1
           volumeMounts:
             - mountPath: /data

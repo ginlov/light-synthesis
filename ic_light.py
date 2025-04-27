@@ -409,36 +409,42 @@ def light_synthesize(
 
     for camera_id in tqdm(camera_ids, desc="Processing Cameras"):
         for timestep in tqdm(all_time_steps, desc='Processing timesteps'):
-            # Get light prompt and background source
-            light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
-            light_bg_source = np.random.choice(list(BGSource), 1)[0]
-            logging.info(f"camera_id: {camera_id}, timestep: {timestep}, light_prompt: {light_prompt}, light_bg_source: {light_bg_source}")
-            cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
+            if os.path.exists(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg")):
+                continue
+            try:
+                # Get light prompt and background source
+                light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
+                light_bg_source = np.random.choice(list(BGSource), 1)[0]
+                logging.info(f"camera_id: {camera_id}, timestep: {timestep}, light_prompt: {light_prompt}, light_bg_source: {light_bg_source}")
+                cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
-            cropped_image = np.array(cropped_image)
-            h, w, _ = cropped_image.shape
+                cropped_image = np.array(cropped_image)
+                h, w, _ = cropped_image.shape
 
-            input_fg, results = process_relight(
-                cropped_image,
-                light_prompt,
-                w,
-                h,
-                light_num_samples,
-                light_seed,
-                light_steps,
-                light_a_prompt,
-                light_n_prompt,
-                light_cfg,
-                light_highres_scale,
-                light_highres_denoise,
-                light_lowres_denoise,
-                light_bg_source
-            )
-            output_img = Image.fromarray(results[0])
-            output_img = output_img.resize((w, h))
-            assert output_img.size == (w, h), f"Output image size {output_img.size} does not match expected size {(w, h)}"
-            final_image = fill_to_orginal_image(output_img, crop_param, width, height)
-            final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg"))
+                input_fg, results = process_relight(
+                    cropped_image,
+                    light_prompt,
+                    w,
+                    h,
+                    light_num_samples,
+                    light_seed,
+                    light_steps,
+                    light_a_prompt,
+                    light_n_prompt,
+                    light_cfg,
+                    light_highres_scale,
+                    light_highres_denoise,
+                    light_lowres_denoise,
+                    light_bg_source
+                )
+                output_img = Image.fromarray(results[0])
+                output_img = output_img.resize((w, h))
+                assert output_img.size == (w, h), f"Output image size {output_img.size} does not match expected size {(w, h)}"
+                final_image = fill_to_orginal_image(output_img, crop_param, width, height)
+                final_image.save(os.path.join(out_path, 'images_lr', camera_id, f"{timestep}_img.jpg"))
+            except:
+                logging.error(f"Error processing input {input_dir}, camera_id: {camera_id}, timestep: {timestep}")
+                continue
 
 # Set up logging
 def setup_logging(output_path):
