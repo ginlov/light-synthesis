@@ -435,24 +435,27 @@ if __name__ == "__main__":
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
 
-    prompt_list = [ "Warm golden hour lighting with long soft shadows",
-"Dramatic low-key lighting with high contrast and deep shadows",
-"Soft morning light from left",
-"Bright midday sunlight with clear shadows",
-"Cool-toned moonlight from top-right",
-"Moody blue twilight ambiance",
-"Cinematic lighting with warm highlights and cool shadows",
-"Diffused natural cloudy-day light",
-"Neon lighting with vivid red and blue tones",
-"Spotlight effect centered",
-"Dim candlelit glow with flickering highlights",
-"Soft studio lighting from both sides",
-"Sunset lighting with warm orange and pink hues",
-"Harsh fluorescent office lighting",
-"Strobe lighting with sharp flashing bursts",
-"Soft indoor lighting with warm incandescent tones",
-"Directional window light with diagonal shadows",
-"Dramatic chiaroscuro"
+    prompt_list = [
+    "Morning sunlight",
+    "Afternoon sunlight",
+    "Sunset glow",
+    "Cloudy daylight",
+    "Indoor warm lighting",
+    "Indoor cool lighting",
+    "Window light",
+    "Streetlight at night",
+    "Office fluorescent lighting",
+    "Soft studio lighting",
+    "Candlelight",
+    "Moonlight",
+    "Early morning soft light",
+    "Bright noon sunlight",
+    "Evening indoor lamp light",
+    "Open window daylight",
+    "Car headlights at night",
+    "Bedroom nightstand lamp light",
+    "TV screen glow in a dark room",
+    "Café indoor lighting"
 ]
 
     try:
