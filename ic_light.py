@@ -365,27 +365,27 @@ def light_synthesize(
     light_lowres_denoise
 ):
     prompt_list = [
-        "Morning sunlight",
-        "Afternoon sunlight",
-        "Sunset glow",
-        "Cloudy daylight",
-        "Indoor warm lighting",
-        "Indoor cool lighting",
-        "Window light",
-        "Streetlight at night",
-        "Office fluorescent lighting",
-        "Soft studio lighting",
-        "Candlelight",
-        "Moonlight",
-        "Early morning soft light",
-        "Bright noon sunlight",
-        "Evening indoor lamp light",
-        "Open window daylight",
-        "Car headlights at night",
-        "Bedroom nightstand lamp light",
-        "TV screen glow in a dark room",
-        "Café indoor lighting"
-    ]
+    "morning sunlight through sheer curtains",
+    "neon reflections on wet pavement, night city",
+    "twilight glow, serene forest clearing",
+    "candlelit dinner, cozy and intimate",
+    "moonlight casting shadows over mountains",
+    "fluorescent lights in abandoned mall",
+    "warm fireplace glow, rustic cabin interior",
+    "bioluminescent plants, alien jungle",
+    "dim cafe lighting, rainy evening",
+    "bright noon sunlight, bustling street market",
+    "golden sunset reflecting on skyscrapers",
+    "icy blue northern lights across night sky",
+    "soft bedside lamp, quiet reading time",
+    "cinematic spotlight in smoky room",
+    "multicolor LED lights, futuristic nightclub",
+    "pale dawn mist, gentle ambient light",
+    "harsh interrogation room spotlight",
+    "oil lanterns lining a dark medieval alley",
+    "pink sunset clouds over a sleepy village",
+    "warm bokeh lights, festive street fair"
+]
 
     # Create output directory with structure same as images_lr folder
     if not os.path.exists(out_path):
