@@ -26,9 +26,9 @@ def get_crop_param(basedir: str, camera_id: str, timestep: str):
     crop_param = np.array(crop_param) / 2
     crop_param = crop_param.astype(int)
 
-    # Adjust width and height to be divisible by 8
-    crop_param[2] = crop_param[0] + ((crop_param[2] - crop_param[0]) // 8) * 8
-    crop_param[3] = crop_param[1] + ((crop_param[3] - crop_param[1]) // 8) * 8
+    # Adjust width and height to be divisible by 64
+    crop_param[2] = crop_param[0] + ((crop_param[2] - crop_param[0]) // 64) * 64
+    crop_param[3] = crop_param[1] + ((crop_param[3] - crop_param[1]) // 64) * 64
     
     return crop_param.astype(int) # As note in the paper, the image is downsampled by 2
 
