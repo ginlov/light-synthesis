@@ -355,7 +355,6 @@ def process_relight(input_fg, prompt, image_width, image_height, num_samples, se
 def light_synthesize(
     out_path,
     input_dir,
-    light_prompt,
     light_num_samples,
     light_seed,
     light_steps,
@@ -364,9 +363,31 @@ def light_synthesize(
     light_cfg,
     light_highres_scale,
     light_highres_denoise,
-    light_lowres_denoise,
-    light_bg_source
+    light_lowres_denoise
 ):
+    prompt_list = [
+        "Morning sunlight",
+        "Afternoon sunlight",
+        "Sunset glow",
+        "Cloudy daylight",
+        "Indoor warm lighting",
+        "Indoor cool lighting",
+        "Window light",
+        "Streetlight at night",
+        "Office fluorescent lighting",
+        "Soft studio lighting",
+        "Candlelight",
+        "Moonlight",
+        "Early morning soft light",
+        "Bright noon sunlight",
+        "Evening indoor lamp light",
+        "Open window daylight",
+        "Car headlights at night",
+        "Bedroom nightstand lamp light",
+        "TV screen glow in a dark room",
+        "Café indoor lighting"
+    ]
+
     # Create output directory with structure same as images_lr folder
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -385,6 +406,9 @@ def light_synthesize(
 
     for camera_id in tqdm(camera_ids, desc="Processing Cameras"):
         for timestep in tqdm(all_time_steps, desc='Processing timesteps'):
+            # Get light prompt and background source
+            light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
+            light_bg_source = np.random.choice(list(BGSource), 1)[0]
             cropped_image, crop_param, width, height = crop_img(input_dir, camera_id, timestep)
 
             cropped_image = np.array(cropped_image)
@@ -404,7 +428,7 @@ def light_synthesize(
                 light_highres_scale,
                 light_highres_denoise,
                 light_lowres_denoise,
-                BGSource(light_bg_source)
+                light_bg_source
             )
             output_img = Image.fromarray(results[0])
 
@@ -419,7 +443,6 @@ if __name__ == "__main__":
     # Lighting args
     parser.add_argument("--input_dir", type=str, required=True, help="Path to the input directory")
     parser.add_argument("--out_path", type=str, required=False, default="synthesized_images", help="Path to the output directory")
-    parser.add_argument("--light_prompt", type=str, required=True, help="Prompt for the image generation")
     parser.add_argument("--light_num_samples", type=int, default=1, help="Number of samples to generate")
     parser.add_argument("--light_seed", type=int, default=12345, help="Random seed for generation")
     parser.add_argument("--light_steps", type=int, default=25, help="Number of steps for generation")
@@ -429,44 +452,10 @@ if __name__ == "__main__":
     parser.add_argument("--light_highres_scale", type=float, default=1.5, help="Highres scale")
     parser.add_argument("--light_highres_denoise", type=float, default=0.5, help="Highres denoise")
     parser.add_argument("--light_lowres_denoise", type=float, default=0.9, help="Lowres denoise")
-    parser.add_argument("--light_bg_source", type=str, default=BGSource.NONE.value, help="Background source")
     args = parser.parse_args()
 
     if not os.path.exists(args.out_path):
         os.makedirs(args.out_path)
-
-    prompt_list = [
-    "Morning sunlight",
-    "Afternoon sunlight",
-    "Sunset glow",
-    "Cloudy daylight",
-    "Indoor warm lighting",
-    "Indoor cool lighting",
-    "Window light",
-    "Streetlight at night",
-    "Office fluorescent lighting",
-    "Soft studio lighting",
-    "Candlelight",
-    "Moonlight",
-    "Early morning soft light",
-    "Bright noon sunlight",
-    "Evening indoor lamp light",
-    "Open window daylight",
-    "Car headlights at night",
-    "Bedroom nightstand lamp light",
-    "TV screen glow in a dark room",
-    "Café indoor lighting"
-]
-
-    try:
-        for i in range(100):
-            new_prompt = gen_lighting_prompt()
-            prompt_list.append(new_prompt)
-    except:
-        pass
-    
-    # Get random prompt
-    light_prompt = prompt_list[np.random.randint(0, len(prompt_list))]
 
     for object_ in object_list:
         input_dir = os.path.join(args.input_dir, object_)
@@ -474,7 +463,6 @@ if __name__ == "__main__":
         light_synthesize(
             out_path=output_dir,
             input_dir=input_dir,
-            light_prompt=light_prompt,
             light_num_samples=args.light_num_samples,
             light_seed=args.light_seed,
             light_steps=args.light_steps,
@@ -484,5 +472,4 @@ if __name__ == "__main__":
             light_highres_scale=args.light_highres_scale,
             light_highres_denoise=args.light_highres_denoise,
             light_lowres_denoise=args.light_lowres_denoise,
-            light_bg_source=args.light_bg_source
         )
